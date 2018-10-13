@@ -50,6 +50,19 @@ drawings_list.each do |drawing|
     drawing_progression = all_drawings.select { |d| drawing.number == d.number }
     drawing_progression.sort_by { |d| d.revision }
     #FileUtils.cp(drawing_progression[0].path, "#{cwd}/05 Drawings and Technical/09 Current PDFs/#{File.basename(drawing_progression[0].path)}")
-    puts File.basename(drawing_progression[0].path.to_s)
+    File.basename(drawing_progression[0].path.to_s)
 end
 
+public
+
+def is_pdf_drawing?
+    return true if !!(File.basename(self) =~ /^\d{4}-S-\d{2}-\d\S\s\[\w+\]\s.+$/)
+end
+
+def get_current_pdfs
+    pdfs = Dir["#{Dir.pwd}/05 Drawings and Technical/09 Current PDFs/*.pdf"]
+    pdfs.select! { |pdf| pdf.is_pdf_drawing? }
+    return pdfs
+end
+
+puts get_current_pdfs
