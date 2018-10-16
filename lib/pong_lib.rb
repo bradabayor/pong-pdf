@@ -1,44 +1,58 @@
 module PongLib
-  cwd = Dir.pwd
-  proj_number = File.basename(cwd)[-4..-1].to_i
+  require 'fileutils'
   
   d_num_regex = /\d{4}-S-\d{2}-\d\S/
   d_rev_regex = /\[\w+\]/
   d_title_regex = /\d{4}-S-\d{2}-\d\S\s\[\w+\]\s(.+)/
-  
-  correspondence = "01 Correspondence"
-  draw_tech = "05 Drawings and Technical"
 
-  
-  def get_all_drawings
-      submissions = Dir["#{cwd}/#{correspondence}/*"]
-      all_drawings = []
-      submissions.reverse!
-      submissions.each do |s|
-          files = Dir["#{s}/*.pdf"]
-          files.each do |path|
-              drawing_number = d_num_regex.match(File.basename(path).to_s)[0]
-              drawing_revision = d_rev_regex.match(File.basename(path).to_s)[0]
-              drawing_title = d_title_regex.match(File.basename(path).to_s)[1]
-              all_drawings << Drawing.new(drawing_number, drawing_revision, drawing_title, path)
-          end
+  # Public: Checks regular expression against drawing file basename
+  #
+  # regex - The regular expression to be checked
+  # path - The path of the drawing file to be checked
+  # index - The index of the regular expression matches array to return
+  #
+  # Examples
+  #
+  # match_regex_with_basename(/\[\w+\]/, usr/desktop/0123-S-01-01 [A] GF PLAN, 0)
+  # # => "A"
+  #
+  # Returns matches of regex against specifed drawing filename
+  def match_regex_with_basename(regex, path, index)
+    return regex.match(File.basename(path).to_s)[index]
+  end
+
+  def get_submission_folders(path)
+    return Dir["#{cwd}"].reverse
+  end
+
+  def get_all_drawings(submissions)
+    all_drawings = []
+
+    submissions.each do |submission|
+      files = Dir["#{submission}/*.pdf"]
+      files.each do |path|
+
+      drawing_number = match_regex_with_basename(d_num_regex, path, 0)
+      drawing_revision = match_regex_with_basename(d_rev_regex, path, 0)
+      drawing_title = match_regex_with_basename(d_title_regex, path, 1)
+
+        all_drawings << Drawing.new(drawing_number, drawing_revision, drawing_title, path)
       end
+    return all_drawings
+    end
   end
   
   def get_unique_drawing_list
-      drawings_list = all_drawings.uniq { |file| file.number }
+    return all_drawings.uniq { |file| file.number }
   end
   
   def copy_drawings_to_current_pdfs
-      drawings_list.each do |drawing|
-          drawing_progression = all_drawings.select { |d| drawing.number == d.number }
-          drawing_progression.sort_by { |d| d.revision }
-          latest_drawing = drawing_progression[0]
-          #FileUtils.cp(latest_drawing.path, "#{cwd}/05 Drawings and Technical/09 Current PDFs/#{File.basename(drawing_progression[0].path)}")
-          File.open("log.txt", "a") do |line|
-              line.puts "#{latest_drawing.number}    #{latest_drawing.revision}      #{latest_drawing.title}"
-          end
-      end
+    drawings_list.each do |drawing|
+      drawing_progression = all_drawings.select { |d| drawing.number == d.number }
+      drawing_progression.sort_by { |d| d.revision }
+      latest_drawing = drawing_progression[0]
+      FileUtils.cp(latest_drawing.path, "#{cwd}/05 Drawings and Technical/09 Current PDFs/#{File.basename(drawing_progression[0].path)}")
+    end
   end
   
   def is_pdf_drawing?
