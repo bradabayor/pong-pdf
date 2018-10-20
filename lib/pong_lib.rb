@@ -1,67 +1,135 @@
-module PongLib
-  require 'fileutils'
-  
-  d_num_regex = /\d{4}-S-\d{2}-\d\S/
-  d_rev_regex = /\[\w+\]/
-  d_title_regex = /\d{4}-S-\d{2}-\d\S\s\[\w+\]\s(.+)/
+# FUNCTIONS #
+ 
+public
 
-  # Public: Checks regular expression against drawing file basename
-  #
-  # regex - The regular expression to be checked
-  # path - The path of the drawing file to be checked
-  # index - The index of the regular expression matches array to return
-  #
-  # Examples
-  #
-  # match_regex_with_basename(/\[\w+\]/, usr/desktop/0123-S-01-01 [A] GF PLAN, 0)
-  # # => "A"
-  #
-  # Returns matches of regex against specifed drawing filename
-  def match_regex_with_basename(regex, path, index)
-    return regex.match(File.basename(path).to_s)[index]
-  end
+@d_num_regex = /\d{4}-S-\d{2}-\d\S/
+@d_rev_regex = /\[\w+\]/
+@d_title_regex = /\d{4}-S-\d{2}-\d\S\s\[\w+\]\s(.+)/
 
-  def get_submission_folders(path)
-    return Dir["#{cwd}"].reverse
-  end
+# Public: Checks regular expression against drawing file basename
+#
+# regex - The regular expression to be checked
+# path - The path of the drawing file to be checked
+# index - The index of the regular expression matches array to return
+#
+# Examples
+#
+# match_regex_with_basename(/\[\w+\]/, usr/desktop/0123-S-01-01 [A] GF PLAN, 0)
+# # => "A"
+#
+# Returns matches of regex against specifed drawing filename
+def match_regex_with_basename(regex, path, index)
+  return regex.match(File.basename(path).to_s)[index]
+end
 
-  def get_all_drawings(submissions)
-    all_drawings = []
+# Public: Returns an array of folder paths in order of most recently submitted first
+#
+# path - the path of the correspondence folder
+#
+# Examples
+#
+# get_submission_folders(#{cwd}/01 Correspondence)
+# # => ["/mnt/c/Users/brada/Desktop/00003456/01 Correspondence/180606 As CONStrucTED", "/mnt/c/Users/brada/Desktop/00003456/01 Correspondence/180429 Construction Issue"]
+#
+# Returns array of folders in descending order
+def get_submission_folders(path)
+  # Return an array of folders only in descending order
+  return Dir[path].select { |file| File.directory?(file) }.reverse
+end
 
-    submissions.each do |submission|
-      files = Dir["#{submission}/*.pdf"]
-      files.each do |path|
-
-      drawing_number = match_regex_with_basename(d_num_regex, path, 0)
-      drawing_revision = match_regex_with_basename(d_rev_regex, path, 0)
-      drawing_title = match_regex_with_basename(d_title_regex, path, 1)
-
-        all_drawings << Drawing.new(drawing_number, drawing_revision, drawing_title, path)
-      end
-    return all_drawings
+# Public: Returns an array of folder paths in order of most recently submitted first
+#
+# path - the path of the correspondence folder
+#
+# Examples
+#
+# get_submission_folders(#{cwd}/01 Correspondence)
+# # => ["/mnt/c/Users/brada/Desktop/00003456/01 Correspondence/180606 As CONStrucTED", "/mnt/c/Users/brada/Desktop/00003456/01 Correspondence/180429 Construction Issue"]
+#
+# Returns array of folders in descending order
+def get_all_drawings(submissions)
+# Initialize temporary array to have Drawing objects appended
+  drawings = [] 
+  # Iterate through sorted array of submission folders
+  submissions.each do |submission|
+    # Skip to the next folder if folder is empty
+    #>>> ADD EMPTY FOLDER WARNING FEEDBACK MESSAGE HERE <<<
+    next if submission.empty?
+    # Iterate through files in submission folder
+    files = Dir["#{submission}/*.pdf"]
+    files.each do |path|
+      # Check that file is relevant drawing
+      next if File.basename(path).is_pdf_drawing? == false
+      # Extract information if ile is relevant drawing
+      drawing_number = match_regex_with_basename(@d_num_regex, path, 0)
+      drawing_revision = match_regex_with_basename(@d_rev_regex, path, 0)
+      drawing_title = match_regex_with_basename(@d_title_regex, path, 1)
+      # Create new instance of Drawing class using extracted information, and append to drawings array
+      drawings << Drawing.new(drawing_number, drawing_revision, drawing_title, path)
     end
+  return drawings
   end
-  
-  def get_unique_drawing_list
-    return all_drawings.uniq { |file| file.number }
+end
+
+# Public: Returns an array emulating a drawing list
+#
+# self - an array of drawing objects
+#
+# Examples
+#
+# drawings.get_unique_drawing_list
+# # => [Drawing[@number="S-01-01"], Drawing[@number="S-03-02"]]
+#
+# Returns a drawing list
+def self.get_unique_drawing_list
+return self.uniq { |file| file.number }
+end
+
+# Public: Returns an array of the drawings to be copied
+#
+# self - array of all drawings
+#
+# Examples
+#
+# drawings.select_drawings_to_copy
+# # => ["/mnt/c/Users/brada/Desktop/00003456/01 Correspondence/180606 As CONStrucTED", "/mnt/c/Users/brada/Desktop/00003456/01 Correspondence/180429 Construction Issue"]
+#
+# Returns array of drawings to be copied
+def self.select_drawings_to_copy
+  # Initialize temporary array to append drawings to copy
+  drawings = []
+  #Iterate through all drawings
+  self.each do |drawing|
+    # Generate array of all drawings of the same number
+    drawing_progression = drawings.select { |d| drawing.number == d.number }
+    # Sort array of drawings by most recent first
+    drawing_progression.sort_by { |d| d.revision }
+    # Select most recent drawings
+    drawings << drawing_progression[0]
   end
-  
-  def copy_drawings_to_current_pdfs
-    drawings_list.each do |drawing|
-      drawing_progression = all_drawings.select { |d| drawing.number == d.number }
-      drawing_progression.sort_by { |d| d.revision }
-      latest_drawing = drawing_progression[0]
-      FileUtils.cp(latest_drawing.path, "#{cwd}/05 Drawings and Technical/09 Current PDFs/#{File.basename(drawing_progression[0].path)}")
-    end
-  end
-  
-  def is_pdf_drawing?
-      return true if !!(File.basename(self) =~ /^\d{4}-S-\d{2}-\d\S\s\[\w+\]\s.+$/)
-  end
-  
-  def get_current_pdfs
-      pdfs = Dir["#{Dir.pwd}/05 Drawings and Technical/09 Current PDFs/*.pdf"]
-      pdfs.select! { |pdf| pdf.is_pdf_drawing? }
-      return pdfs
-  end
+  return drawings
+end
+
+# Public: Copies files to the specified folder
+#
+# self - file to be copied
+#
+# Examples
+#
+# Drawing.copy_to_folder("#{cwd}/05 Drawings and Technical/11 Current PDFs/")
+# # => 11 Current PDFs now contains new file
+#
+# Returns array of drawings to be copied
+def self.copy_to_folder(folder)
+  FileUtils.cp(latest_drawing.path, "#{Dir.pwd}/05 Drawings and Technical/09 Current PDFs/#{File.basename(drawing_progression[0].path)}")
+end
+
+def is_pdf_drawing?
+  return true if self === /^\d{4}-S-\d{2}-\d\S\s\[\w+\]\s.+$/
+end
+
+def get_current_pdfs
+  pdfs = Dir["#{Dir.pwd}/05 Drawings and Technical/09 Current PDFs/*.pdf"]
+  pdfs.select! { |pdf| pdf.is_pdf_drawing? }
+  return pdfs
 end
