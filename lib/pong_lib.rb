@@ -1,10 +1,17 @@
 # FUNCTIONS #
+
+require_relative 'pong_errors.rb'
+require 'colorize'
  
 public
+
+@cwd = Dir.pwd
 
 @d_num_regex = /\d{4}-S-\d{2}-\d\S/
 @d_rev_regex = /\[\w+\]/
 @d_title_regex = /\d{4}-S-\d{2}-\d\S\s\[\w+\]\s(.+)/
+
+@config = {:correspondence => "01 Correspondence"}
 
 # Public: Checks regular expression against drawing file basename
 #
@@ -32,9 +39,13 @@ end
 # # => ["/mnt/c/Users/brada/Desktop/00003456/01 Correspondence/180606 As CONStrucTED", "/mnt/c/Users/brada/Desktop/00003456/01 Correspondence/180429 Construction Issue"]
 #
 # Returns array of folders in descending order
-def get_submission_folders(path)
-  # Return an array of folders only in descending order
-  return Dir[path].select { |file| File.directory?(file) }.reverse
+def get_submission_folders
+  path = "#{@cwd}/#{@config[:correspondence]}"
+  begin
+    raise IncorrectPathError if File.directory?(path)
+    return Dir[path + "/*"].select { |file| File.directory?(file) }.reverse
+  rescue IncorrectPathError => e
+  end
 end
 
 # Public: Returns an array of folder paths in order of most recently submitted first
@@ -81,8 +92,8 @@ end
 # # => [Drawing[@number="S-01-01"], Drawing[@number="S-03-02"]]
 #
 # Returns a drawing list
-def self.get_unique_drawing_list
-return self.uniq { |file| file.number }
+def get_unique_drawing_list(drawings_array)
+return drawings_array.uniq { |file| file.number }
 end
 
 # Public: Returns an array of the drawings to be copied
@@ -95,19 +106,23 @@ end
 # # => ["/mnt/c/Users/brada/Desktop/00003456/01 Correspondence/180606 As CONStrucTED", "/mnt/c/Users/brada/Desktop/00003456/01 Correspondence/180429 Construction Issue"]
 #
 # Returns array of drawings to be copied
-def self.select_drawings_to_copy
+def select_drawings_to_copy(drawings_array)
   # Initialize temporary array to append drawings to copy
   drawings = []
-  #Iterate through all drawings
-  self.each do |drawing|
+  # Generate a list of unique drawing numbers
+  drawing_list = drawings_array.uniq { |file| file.number }
+  # Get a list of drawings already present in Current PDFs folder
+  current_pdfs = get_current_pdfs
+  # Iterate through all drawings
+  drawing_list.each do |drawing|
     # Generate array of all drawings of the same number
-    drawing_progression = drawings.select { |d| drawing.number == d.number }
+    drawing_progression = drawings_array.select { |d| drawing.number == d.number }
     # Sort array of drawings by most recent first
     drawing_progression.sort_by { |d| d.revision }
     # Select most recent drawings
     drawings << drawing_progression[0]
   end
-  return drawings
+  return (drawing_list - current_pdfs)
 end
 
 # Public: Copies files to the specified folder
@@ -129,7 +144,6 @@ def is_pdf_drawing?
 end
 
 def get_current_pdfs
-  pdfs = Dir["#{Dir.pwd}/05 Drawings and Technical/09 Current PDFs/*.pdf"]
-  pdfs.select! { |pdf| pdf.is_pdf_drawing? }
-  return pdfs
+  pdfs = Dir.basename["#{Dir.pwd}/05 Drawings and Technical/09 Current PDFs/*.pdf"]
+  p pdfs =  pdfs.select { |pdf| File.basename(pdf).is_pdf_drawing? }
 end

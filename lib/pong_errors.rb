@@ -1,0 +1,2 @@
+class IncorrectPathError < StandardError
+end
