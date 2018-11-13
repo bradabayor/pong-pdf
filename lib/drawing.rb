@@ -1,13 +1,14 @@
 class Drawing
-    attr_accessor :number, :revision, :title, :path
-    @@i = 0
-  
-    def initialize(number, revision, title, path)
-      @index = @@i
-      @number = number
-      @revision = revision
-      @title = title
-      @path = path
-      @@i += 1
-    end
+  attr_accessor :number, :revision, :title, :path, :is_current
+  @@i = 0
+
+  def initialize(number, revision, title, path, is_current)
+    @index = @@i
+    @number = number
+    @revision = revision
+    @title = title
+    @path = path
+    @is_current = is_current
+    @@i += 1
+  end
 end
