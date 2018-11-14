@@ -37,12 +37,11 @@ current.map! { |drawing| create_drawing_instance(drawing, true) }.sort_by { |dra
 drawing_list.each do |drawing|
 	current_drawing = current.select { |current_drawing| current_drawing.number == drawing.number }
 	if current_drawing == []
-		puts "#{drawing.title}: #{drawing.revision}"
-		puts "New Drawing"
-		sleep(1)
+		print "<<NEW>> ".colorize(:blue)
+		puts "[-] => [#{drawing.revision}] :: #{drawing.number} - #{drawing.title}"
+		sleep(0.5)
 		copy_drawing(drawing.path, @config[:current_pdfs])
-		puts "Drawing Copied"
-		sleep(1)
+		#puts "Drawing Copied"
 		next
 	end
 	current_drawing = current_drawing[0]
@@ -50,19 +49,23 @@ drawing_list.each do |drawing|
 	current_drawing_revisions.sort_by { |current_drawing| current_drawing.revision }
 
 	#Check latest drawing against current drawing in Current PDFs
-	puts "#{current_drawing.title}: #{current_drawing.revision} <==> #{drawing.title}: #{drawing.revision}"
+	#puts "#{current_drawing.title}: #{current_drawing.revision} <==> #{drawing.title}: #{drawing.revision}"
 	if (current_drawing.number === drawing.number) && (current_drawing.revision === drawing.revision)
-		puts "Up To Date"
-		sleep(1)
+		print "<<UNC>> ".colorize(:green)
+		puts "[#{current_drawing.revision}] == [#{drawing.revision}] :: #{drawing.number} - #{drawing.title}"
+		sleep(0.5)
 	elsif (current_drawing.number === drawing.number) && (current_drawing.revision < drawing.revision)
-		puts "Needs Updating"
-		sleep(1)
+		print "<<SUP>> ".colorize(:red)
+		puts "[#{current_drawing.revision}] => [#{drawing.revision}] :: #{drawing.number} - #{drawing.title}"
+		sleep(0.5)
 		copy_drawing(drawing.path, @config[:current_pdfs])
 		move_drawing(current_drawing.path, @config[:superseeded])
-		puts "Drawing Copied and Superseeded"
-		sleep(1)
+		#puts "Drawing Copied and Superseeded"
+		#sleep(1)
 	end
 end
+
+sleep(3)
 
 
 #File.open("log.txt", "a") do |line|
